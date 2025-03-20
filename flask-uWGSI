@@ -1,0 +1,154 @@
+##############################################################################
+python
+##############################################################################
+
+pip install flask uwsgi
+
+or
+
+sudo apt update
+sudo apt install uwsgi uwsgi-plugin-python3 -y
+uwsgi --version
+
+
+
+from flask import Flask, request
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    param = request.headers.get("X-Custom-Header", "No param received")
+    return f"Flask received: {param}"
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
+
+#uwsgi --http :5000 --wsgi-file app.py --callable app
+
+
+
+ Create `uwsgi.ini` 
+
+[uwsgi]
+module = app:app
+socket = /tmp/uwsgi.sock
+chmod-socket = 666
+vacuum = true
+die-on-term = true
+
+
+sudo rm /etc/nginx/sites-available/flaskapp
+sudo nano /etc/nginx/sites-available/flaskapp
+
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/tmp/uwsgi.sock;
+
+        # Passing a custom header to Flask
+        uwsgi_param X-Custom-Header "Hello Flask from Nginx!";
+    }
+}
+
+
+
+
+Start uWSGI and Restart Nginx
+
+uwsgi --ini uwsgi.ini &
+sudo systemctl restart nginx
+
+uwsgi --plugin python3 --ini uwsgi.ini
+[uwsgi]
+plugin = python3
+module = app:app
+socket = /tmp/uwsgi.sock
+chmod-socket = 666
+vacuum = true
+die-on-term = true
+
+
+
+curl -H "X-Custom-Header: TestValue" http://localhost
+`
+Expected output:
+```
+Flask received: TestValue
+
+##############################################################################
+php
+##############################################################################
+
+### **2️⃣ Passing Parameters to FastCGI (PHP Example)**
+
+---
+
+#### **🔹 Step 1: Install PHP-FPM**
+```sh
+sudo apt update
+sudo apt install php-fpm
+```
+
+---
+
+#### **🔹 Step 2: Create a PHP File (`/var/www/html/index.php`)**
+```php
+<?php
+if (isset($_SERVER['HTTP_X_CUSTOM_PARAM'])) {
+    echo "PHP received: " . $_SERVER['HTTP_X_CUSTOM_PARAM'];
+} else {
+    echo "No param received!";
+}
+?>
+```
+
+---
+
+#### **🔹 Step 3: Configure Nginx to Pass Custom Parameter to FastCGI**
+Edit your Nginx configuration (`/etc/nginx/sites-available/default`):
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    root /var/www/html;
+    index index.php;
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+        fastcgi_param X-Custom-Param "Hello PHP from Nginx!";
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+```
+
+---
+
+#### **🔹 Step 4: Restart PHP-FPM and Nginx**
+```sh
+sudo systemctl restart php8.1-fpm nginx
+```
+
+---
+
+#### **🔹 Step 5: Test with Curl**
+```sh
+curl -H "X-Custom-Param: TestValue" http://localhost/index.php
+```
+Expected output:
+```
+PHP received: TestValue
+```
+
+---
+
+### **📌 Summary**
+- **Flask with uWSGI** → Pass parameters using `uwsgi_param`  
+- **PHP with FastCGI** → Pass parameters using `fastcgi_param`  
+
+✅ Now you can pass parameters dynamically from Nginx to Flask and PHP! 🚀 Let me know if you need modifications.
