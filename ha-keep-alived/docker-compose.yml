@@ -4,6 +4,7 @@ services:
   nginx1:
     image: nginx:latest
     container_name: nginx1
+    restart: always
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./html:/usr/share/nginx/html:ro
@@ -13,6 +14,7 @@ services:
   nginx2:
     image: nginx:latest
     container_name: nginx2
+    restart: always
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./html:/usr/share/nginx/html:ro
@@ -22,28 +24,32 @@ services:
   keepalived_master:
     image: osixia/keepalived:latest
     container_name: keepalived_master
+    restart: always
     cap_add:
       - NET_ADMIN
       - NET_BROADCAST
     volumes:
-      - ./keepalived/keepalived_master.conf:/container/service/keepalived/assets/keepalived.conf:ro
+      - ./keepalived/keepalived_master.conf:/etc/keepalived/keepalived.conf:ro
     networks:
       - ha_network
     depends_on:
       - nginx1
+    command: --loglevel debug
 
   keepalived_backup:
     image: osixia/keepalived:latest
     container_name: keepalived_backup
+    restart: always
     cap_add:
       - NET_ADMIN
       - NET_BROADCAST
     volumes:
-      - ./keepalived/keepalived_backup.conf:/container/service/keepalived/assets/keepalived.conf:ro
+      - ./keepalived/keepalived_backup.conf:/etc/keepalived/keepalived.conf:ro
     networks:
       - ha_network
     depends_on:
       - nginx2
+    command: --loglevel debug
 
 networks:
   ha_network:
